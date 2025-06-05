@@ -19,7 +19,10 @@ const Character = {
 const img = new Image();
 img.src = 'character.png';
 
-const SCALE = 2;
+const grassImg = new Image();
+grassImg.src = 'ground.jpg';
+
+const SCALE = 2.5;
 const FRAME_LIMIT = 18;
 let currentFrame = 0;
 
@@ -57,27 +60,34 @@ function drawCharacter(motion, facing) {
   );
 }
 
+let swidth = 118;
+let sheight = 118;
+let xs = 10;
+let xy = 128 * 1 + 10;
+
 function drawBackground() {
-  ctx.strokeStyle = '#ffffff44';
-  ctx.lineWidth = 1;
+  const grassSize = 128;
+  const scaledGrassSize = grassSize * SCALE;
 
-  const gridSize = 50;
-  const startX = (mapOffset.x % gridSize) - gridSize;
-  const startY = (mapOffset.y % gridSize) - gridSize;
+  const tilesX = (canvas.width / scaledGrassSize) + 2;
+  const tilesY = (canvas.height / scaledGrassSize) + 2;
 
-  for (let x = startX; x < canvas.width + gridSize; x += gridSize) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, canvas.height);
-    ctx.stroke();
+  const startX = (mapOffset.x % scaledGrassSize) - scaledGrassSize;
+  const startY = (mapOffset.y % scaledGrassSize) - scaledGrassSize;
+
+
+  for (let x = 0; x < tilesX; x++) {
+    for (let y = 0; y < tilesY; y++) {
+      ctx.drawImage(grassImg,
+        xs, xy, swidth, sheight,
+        startX + (x * scaledGrassSize),
+        startY + (y * scaledGrassSize),
+        scaledGrassSize + 3,
+        scaledGrassSize + 3,
+      );
+    }
   }
 
-  for (let y = startY; y < canvas.height + gridSize; y += gridSize) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(canvas.width, y);
-    ctx.stroke();
-  }
 }
 
 let update_index = 0;
@@ -166,4 +176,17 @@ document.addEventListener('keyup', (e) => {
   }
 });
 
-img.onload = () => { window.requestAnimationFrame(update); };
+const imageList = [img, grassImg];
+
+Promise.all(imageList.map(image => {
+  return new Promise((resolve, reject) => {
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(`failed to load ${image.src}`));
+  })
+})).then(images => {
+  console.log('all images loaded')
+  window.requestAnimationFrame(update);
+}).catch(error => {
+  console.error('failed to load images, because: ', error);
+});
+
