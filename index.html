@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset=utf-8>
+    <meta name=viewport content="width=device-width initial-scale=1.0">
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        background-color: #222;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        font-family: Arial, sans-serif;
+      }
+
+      canvas { border: 2px solid #444; }
+
+      .controls {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class=controls>
+      <div>Use WASD keys to move</div>
+      <div>W: Up, A: Left, S: Down, D: Right</div>
+    </div>
+    <canvas width=800 height=600></canvas>
+    <script src=script.js></script>
+  </body>
+</html>
