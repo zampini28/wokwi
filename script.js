@@ -216,6 +216,7 @@ class Game {
     this.assetManager.loadImage('grass', 'ground.jpg');
     this.assetManager.loadImage('house_floor', 'house_interior/interior.png');
     this.assetManager.loadImage('house_wall', 'inside/inside.png');
+    this.assetManager.loadImage('house_door', 'tileset_16x16_interior.png');
 
     const success = await this.assetManager.loadAll();
     if (success) {
@@ -257,6 +258,16 @@ class Game {
     this.addSprite('house_wall',
       260, -1600 + 32*40, 32 * 40, 20,
       424, 224, 79, 15
+    );
+
+    this.addSprite('house_door',
+      743, -360, 27*1.5, 39*1.5,
+      178, 8, 27, 39
+    );
+
+    this.addSprite('house_door',
+      780, -360, 27*1.5, 39*1.5,
+      178, 8, 27, 39
     );
 
   }
