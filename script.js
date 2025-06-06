@@ -108,8 +108,8 @@ class Character {
 }
 
 class Sprite {
-  constructor(name, x, y, width, height, sx=0, sy=0, sWidth=null, sHeight=null)
-  {
+  constructor(name, x, y, width, height,
+    sx=0, sy=0, sWidth=null, sHeight=null, hasCollision=false) {
     this.name = name;
     this.x = x;
     this.y = y;
@@ -119,6 +119,15 @@ class Sprite {
     this.sourceY = sy;
     this.sourceWidth = sWidth || width;
     this.sourceHeight = sHeight || height;
+    this.hasCollision = hasCollision;
+  }
+
+  checkCollision(x, y, width, height) {
+    return this.hasCollision &&
+      x < this.x + this.width &&
+      x + width > this.x &&
+      y < this.y + this.height &&
+      y + height > this.y;
   }
 
   draw(ctx, assetManager, mapOffset) {
@@ -134,6 +143,12 @@ class Sprite {
         this.sourceX, this.sourceY, this.sourceWidth, this.sourceHeight,
         screenX, screenY, this.width, this.height
       );
+
+      if (this.hasCollision && window.DEBUG_COLLISIONS) {
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(screenX, screenY, this.width, this.height);
+      }
     }
   }
 }
@@ -198,8 +213,8 @@ class Game {
     //this.frameLimit = 18;
     this.frameLimit = 5;
     this.currentFrame = 0;
-    //this.moveSpeed = 3;
-    this.moveSpeed = 15;
+    this.moveSpeed = 3;
+    //this.moveSpeed = 15;
 
     this.keys = {
       w: false,
@@ -239,32 +254,40 @@ class Game {
     // left wall
     this.addSprite('house_wall',
       260 - 17, -1600, 10*2, 32 * 40 + 19,
-      416, 152, 9, 71
+      416, 152, 9, 71, true
     );
 
     // right wall
     this.addSprite('house_wall',
       260 + 40*32, -1600, 10*2, 32 * 40 + 18,
-      416, 152, 9, 71
+      416, 152, 9, 71, true
     );
 
     // top wall
     this.addSprite('house_wall',
       260, -1600, 32 * 40, 20,
-      424, 224, 79, 15
+      424, 224, 79, 15, true
     );
 
-    // bottom wall
+    // bottom wall #1
     this.addSprite('house_wall',
-      260, -1600 + 32*40, 32 * 40, 20,
-      424, 224, 79, 15
+      260, -1600 + 32*40, 487, 20,
+      424, 224, 79, 15, true
     );
 
+    // bottom wall #2
+    this.addSprite('house_wall',
+      820, -1600 + 32*40, 720, 20,
+      424, 224, 79, 15, true
+    );
+
+    // door #1
     this.addSprite('house_door',
       743, -360, 27*1.5, 39*1.5,
       178, 8, 27, 39
     );
 
+    // door #2
     this.addSprite('house_door',
       780, -360, 27*1.5, 39*1.5,
       178, 8, 27, 39
@@ -272,9 +295,10 @@ class Game {
 
   }
 
-  addSprite(name, x, y, width, height, sx=0, sy=0, sWidth=null, sHeight=null) {
+  addSprite(name, x, y, width, height,
+            sx=0, sy=0, sWidth=null, sHeight=null, hasCollision=false) {
     const sprite = new Sprite(name, x, y, width, height,
-                              sx, sy, sWidth, sHeight);
+                              sx, sy, sWidth, sHeight, hasCollision);
     this.sprites.push(sprite);
     return sprite;
   }
@@ -297,9 +321,31 @@ class Game {
     });
   }
 
+  checkCollision(x, y, width, height) {
+    return this.sprites.some(sprite => {
+      return sprite.checkCollision(x, y, width, height)
+    });
+  }
+
+  getCharacterBounds() {
+    const charWidth = 16 * this.character.scale;
+    const charHeight = 18 * this.character.scale;
+
+    const charX = -this.mapOffset.x + (this.canvas.width/2 - charWidth/2);
+    const charY = -this.mapOffset.y + (this.canvas.height/2 - charHeight/2);
+
+    return {
+      x: charX,
+      y: charY,
+      width: charWidth,
+      height: charHeight,
+    };
+  }
+
   handleInput() {
     let newFacing = this.character.currentFacing;
     let moving = false;
+    const originalOffset = { ...this.mapOffset };
 
     if (this.keys.w) {
       this.mapOffset.y += this.moveSpeed;
@@ -319,6 +365,15 @@ class Game {
       this.mapOffset.x -= this.moveSpeed;
       newFacing = Character.facing.RIGHTWARD;
       moving = true;
+    }
+
+    if (moving) {
+      const charBounds = this.getCharacterBounds();
+      if (this.checkCollision(charBounds.x, charBounds.y,
+                              charBounds.width, charBounds.height)) {
+        this.mapOffset = originalOffset;
+        moving = false;
+      }
     }
 
     this.character.setMoving(moving, newFacing);
@@ -355,3 +410,4 @@ class Game {
 const canvas = document.querySelector('canvas');
 const game = new Game(canvas);
 game.init();
+// window.DEBUG_COLLISIONS = true;
