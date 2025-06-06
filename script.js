@@ -1,192 +1,309 @@
 'use strict';
-const canvas = document.querySelector('canvas');
-const ctx = canvas.getContext('2d');
 
-const Character = {
-  motion: {
+class AssetManager {
+  constructor() {
+    this.images = new Map();
+    this.loadPromises = [];
+  }
+
+  loadImage(name, src) {
+    const img = new Image();
+    img.src = src;
+    this.images.set(name, img);
+
+    const promise = new Promise((resolve, reject) => {
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`failed to load ${src}`));
+    });
+
+    this.loadPromises.push(promise);
+    return promise;
+  }
+
+  getImage(name) {
+    return this.images.get(name);
+  }
+
+  async loadAll() {
+    try {
+      await Promise.all(this.loadPromises);
+      console.log('all images loaded');
+      return true;
+    } catch (error) {
+      console.error('failed to load images:', error);
+      return false;
+    }
+  }
+}
+
+class Character {
+  static motion = {
     NORMAL: 0,
     WALKING1: 1,
     WALKING2: 2,
-  },
-  facing: {
+  };
+
+  static facing = {
     FORWARD: 0,
     BACKWARD: 1,
     LEFTWARD: 2,
     RIGHTWARD: 3,
+  };
+
+  static CYCLE_ANIMATION = [
+    Character.motion.NORMAL,
+    Character.motion.WALKING1,
+    Character.motion.NORMAL,
+    Character.motion.WALKING2,
+  ];
+
+  constructor(canvas, assetManager) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.assetManager = assetManager;
+    this.scale = 2;
+    this.spriteWidth = 16;
+    this.spriteHeight = 18;
+
+    this.currentFacing = Character.facing.FORWARD;
+    this.isMoving = false;
+    this.animationIndex = 0;
   }
-};
 
-const img = new Image();
-img.src = 'character.png';
+  draw() {
+    const img = this.assetManager.getImage('character');
+    if (!img) return;
 
-const grassImg = new Image();
-grassImg.src = 'ground.jpg';
+    const scaledWidth = this.spriteWidth * this.scale;
+    const scaledHeight = this.spriteHeight * this.scale;
+    const centerX = this.canvas.width / 2 - scaledWidth / 2;
+    const centerY = this.canvas.height / 2 - scaledHeight / 2;
 
-const SCALE = 2.5;
-const FRAME_LIMIT = 18;
-let currentFrame = 0;
+    let motion = Character.motion.NORMAL;
+    if (this.isMoving) {
+      motion = Character.CYCLE_ANIMATION[this.animationIndex % 4];
+    }
 
-const gameState = {
-  isMoving: false,
-  currentFacing: Character.facing.FORWARD,
-  keys: {
-    w: false,
-    a: false,
-    s: false,
-    d: false
+    this.ctx.drawImage(img,
+      this.spriteWidth * motion,
+      this.spriteHeight * this.currentFacing,
+      this.spriteWidth, this.spriteHeight,
+      centerX, centerY,
+      scaledWidth, scaledHeight
+    );
   }
-};
 
-const mapOffset = {
-  x: 0,
-  y: 0
-};
+  updateAnimation() {
+    if (this.isMoving) {
+      this.animationIndex++;
+    }
+  }
 
-function drawCharacter(motion, facing) {
-  const spriteWidth = 16;
-  const spriteHeight = 18;
-  const canvasWidth = canvas.width;
-  const canvasHeight = canvas.height;
-  const scaledSpriteWidth = 16 * SCALE;
-  const scaledSpriteHeight = 18 * SCALE;
-  const canvasWidthCentered = canvasWidth/2 - scaledSpriteWidth/2;
-  const canvasHeightCentered = canvasHeight/2 - scaledSpriteHeight/2;
-
-  ctx.drawImage(img,
-    spriteWidth * motion, spriteHeight * facing,
-    spriteWidth, spriteHeight,
-    canvasWidthCentered, canvasHeightCentered,
-    scaledSpriteWidth, scaledSpriteHeight
-  );
+  setMoving(isMoving, facing) {
+    this.isMoving = isMoving;
+    if (facing !== undefined) {
+      this.currentFacing = facing;
+    }
+  }
 }
 
-let swidth = 118;
-let sheight = 118;
-let xs = 10;
-let xy = 128 * 1 + 10;
+class Sprite {
+  constructor(name, x, y, width, height, sx=0, sy=0, sWidth=null, sHeight=null)
+  {
+    this.name = name;
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+    this.sourceX = sx;
+    this.sourceY = sy;
+    this.sourceWidth = sWidth || width;
+    this.sourceHeight = sHeight || height;
+  }
 
-function drawBackground() {
-  const grassSize = 128;
-  const scaledGrassSize = grassSize * SCALE;
+  draw(ctx, assetManager, mapOffset) {
+    const img = assetManager.getImage(this.name);
+    if (!img) return;
 
-  const tilesX = (canvas.width / scaledGrassSize) + 2;
-  const tilesY = (canvas.height / scaledGrassSize) + 2;
+    const screenX = this.x + mapOffset.x;
+    const screenY = this.y + mapOffset.y;
 
-  const startX = (mapOffset.x % scaledGrassSize) - scaledGrassSize;
-  const startY = (mapOffset.y % scaledGrassSize) - scaledGrassSize;
-
-
-  for (let x = 0; x < tilesX; x++) {
-    for (let y = 0; y < tilesY; y++) {
-      ctx.drawImage(grassImg,
-        xs, xy, swidth, sheight,
-        startX + (x * scaledGrassSize),
-        startY + (y * scaledGrassSize),
-        scaledGrassSize + 3,
-        scaledGrassSize + 3,
+    if (screenX + this.width > 0 && screenX < ctx.canvas.width &&
+        screenY + this.height > 0 && screenY < ctx.canvas.height) {
+      ctx.drawImage(img,
+        this.sourceX, this.sourceY, this.sourceWidth, this.sourceHeight,
+        screenX, screenY, this.width, this.height
       );
     }
   }
-
 }
 
-let update_index = 0;
-const CYCLE_ANIMATION = [
-  Character.motion.NORMAL,
-  Character.motion.WALKING1,
-  Character.motion.NORMAL,
-  Character.motion.WALKING2,
-];
+class Background {
+  constructor(canvas, assetManager, tileSize=128, scale=2) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.assetManager = assetManager;
+    this.tileSize = tileSize;
+    this.scale = scale;
+    this.scaledTileSize = tileSize * scale;
 
-function handleInput() {
-  let newFacing = gameState.currentFacing;
-  let moving = false;
-  const moveSpeed = 3;
-
-  if (gameState.keys.w) {
-    mapOffset.y += moveSpeed;
-    newFacing = Character.facing.BACKWARD;
-    moving = true;
-  } else if (gameState.keys.s) {
-    mapOffset.y -= moveSpeed;
-    newFacing = Character.facing.FORWARD;
-    moving = true;
+    this.grassSource = {
+      x: 10,
+      y: 128 + 10,
+      width: 118,
+      height: 118,
+    };
   }
 
-  if (gameState.keys.a) {
-    mapOffset.x += moveSpeed;
-    newFacing = Character.facing.LEFTWARD;
-    moving = true;
-  } else if (gameState.keys.d) {
-    mapOffset.x -= moveSpeed;
-    newFacing = Character.facing.RIGHTWARD;
-    moving = true;
-  }
+  draw(mapOffset) {
+    const tilesX = (this.canvas.width / this.scaledTileSize) + 2;
+    const tilesY = (this.canvas.height / this.scaledTileSize) + 2;
 
-  gameState.isMoving = moving;
-  gameState.currentFacing = newFacing;
-}
+    const startX =
+      (mapOffset.x % this.scaledTileSize) - this.scaledTileSize;
+    const startY =
+      (mapOffset.y % this.scaledTileSize) - this.scaledTileSize;
 
-function update() {
-  handleInput();
+    const grassImg = this.assetManager.getImage('grass');
+    if (!grassImg) return;
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  drawBackground();
-
-  if (currentFrame++ <= FRAME_LIMIT) {
-    let motion = Character.motion.NORMAL;
-    if (gameState.isMoving) {
-      motion = CYCLE_ANIMATION[update_index % 4];
+    for (let x = 0; x < tilesX; x++) {
+      for (let y = 0; y < tilesY; y++) {
+        this.ctx.drawImage(grassImg,
+          this.grassSource.x, this.grassSource.y,
+          this.grassSource.width, this.grassSource.height,
+          startX + (x * this.scaledTileSize),
+          startY + (y * this.scaledTileSize),
+          this.scaledTileSize + 3,
+          this.scaledTileSize + 3
+        );
+      }
     }
-    drawCharacter(motion, gameState.currentFacing);
-
-    window.requestAnimationFrame(update);
-    return;
   }
-
-  currentFrame = 0;
-
-  if (gameState.isMoving) {
-    update_index++;
-  }
-
-  let motion = Character.motion.NORMAL;
-  if (gameState.isMoving) {
-    motion = CYCLE_ANIMATION[update_index % 4];
-  }
-  drawCharacter(motion, gameState.currentFacing);
-
-  window.requestAnimationFrame(update);
 }
 
-document.addEventListener('keydown', (e) => {
-  const key = e.key.toLowerCase();
-  if (key === 'w' || key === 'a' || key === 's' || key === 'd') {
-    gameState.keys[key] = true;
-    e.preventDefault();
+class Game {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+
+    this.assetManager = new AssetManager();
+    this.character = new Character(canvas, this.assetManager);
+    this.background = new Background(canvas, this.assetManager);
+
+    this.mapOffset = { x: 0, y: 0 };
+    this.sprites = [];
+
+    this.frameLimit = 18;
+    this.currentFrame = 0;
+    this.moveSpeed = 3;
+
+    this.keys = {
+      w: false,
+      a: false,
+      s: false,
+      d: false,
+    };
+
+    this.setupEventListeners();
   }
-});
 
-document.addEventListener('keyup', (e) => {
-  const key = e.key.toLowerCase();
-  if (key === 'w' || key === 'a' || key === 's' || key === 'd') {
-    gameState.keys[key] = false;
-    e.preventDefault();
+  async init() {
+    this.assetManager.loadImage('character', 'character.png');
+    this.assetManager.loadImage('grass', 'ground.jpg');
+    this.assetManager.loadImage('house', 'ground.jpg');
+
+    const success = await this.assetManager.loadAll();
+    if (success) {
+      this.createSprites();
+      this.start();
+    }
   }
-});
 
-const imageList = [img, grassImg];
+  createSprites() {
+    this.addSprite('house', 200, 150, 160, 180);
+  }
 
-Promise.all(imageList.map(image => {
-  return new Promise((resolve, reject) => {
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error(`failed to load ${image.src}`));
-  })
-})).then(images => {
-  console.log('all images loaded')
-  window.requestAnimationFrame(update);
-}).catch(error => {
-  console.error('failed to load images, because: ', error);
-});
+  addSprite(name, x, y, width, height, sx=0, sy=0, sWidth=null, sHeight=null) {
+    const sprite = new Sprite(name, x, y, width, height,
+                              sx, sy, sWidth, sHeight);
+    this.sprites.push(sprite);
+    return sprite;
+  }
 
+  setupEventListeners() {
+    document.addEventListener('keydown', event => {
+      const key = event.key;
+      if (key in this.keys) {
+        this.keys[key] = true;
+        event.preventDefault();
+      }
+    });
+
+    document.addEventListener('keyup', event => {
+      const key = event.key;
+      if (key in this.keys) {
+        this.keys[key] = false;
+        event.preventDefault();
+      }
+    });
+  }
+
+  handleInput() {
+    let newFacing = this.character.currentFacing;
+    let moving = false;
+
+    if (this.keys.w) {
+      this.mapOffset.y += this.moveSpeed;
+      newFacing = Character.facing.BACKWARD;
+      moving = true;
+    } else if (this.keys.s) {
+      this.mapOffset.y -= this.moveSpeed;
+      newFacing = Character.facing.FORWARD;
+      moving = true;
+    }
+
+    if (this.keys.a) {
+      this.mapOffset.x += this.moveSpeed;
+      newFacing = Character.facing.LEFTWARD;
+      moving = true;
+    } else if (this.keys.d) {
+      this.mapOffset.x -= this.moveSpeed;
+      newFacing = Character.facing.RIGHTWARD;
+      moving = true;
+    }
+
+    this.character.setMoving(moving, newFacing);
+  }
+
+  update() {
+    this.handleInput();
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    this.background.draw(this.mapOffset);
+
+    this.sprites.forEach(sprite => {
+      sprite.draw(this.ctx, this.assetManager, this.mapOffset);
+    });
+
+    if (this.currentFrame++ <= this.frameLimit) {
+      this.character.draw();
+      requestAnimationFrame(() => this.update());
+      return;
+    }
+
+    this.currentFrame = 0;
+    this.character.updateAnimation();
+    this.character.draw();
+
+    requestAnimationFrame(() => this.update());
+  }
+
+  start() {
+    this.update();
+  }
+}
+
+const canvas = document.querySelector('canvas');
+const game = new Game(canvas);
+game.init();
