@@ -194,9 +194,12 @@ class Game {
     this.mapOffset = { x: 0, y: 0 };
     this.sprites = [];
 
-    this.frameLimit = 18;
+    // edit it
+    //this.frameLimit = 18;
+    this.frameLimit = 5;
     this.currentFrame = 0;
-    this.moveSpeed = 3;
+    //this.moveSpeed = 3;
+    this.moveSpeed = 15;
 
     this.keys = {
       w: false,
@@ -211,7 +214,8 @@ class Game {
   async init() {
     this.assetManager.loadImage('character', 'character.png');
     this.assetManager.loadImage('grass', 'ground.jpg');
-    this.assetManager.loadImage('house', 'ground.jpg');
+    this.assetManager.loadImage('house_floor', 'house_interior/interior.png');
+    this.assetManager.loadImage('house_wall', 'inside/inside.png');
 
     const success = await this.assetManager.loadAll();
     if (success) {
@@ -221,7 +225,40 @@ class Game {
   }
 
   createSprites() {
-    this.addSprite('house', 200, 150, 160, 180);
+    // house floor | 32x32
+    for (let i = 0; i < 40; i++) {
+      for (let j = 0; j < 40; j++) {
+        this.addSprite('house_floor',
+          260 + i*32, -1600 + j*32, 32, 32,
+          2, 32*4+2, 28, 28
+        );
+      }
+    }
+
+    // left wall
+    this.addSprite('house_wall',
+      260 - 17, -1600, 10*2, 32 * 40 + 19,
+      416, 152, 9, 71
+    );
+
+    // right wall
+    this.addSprite('house_wall',
+      260 + 40*32, -1600, 10*2, 32 * 40 + 18,
+      416, 152, 9, 71
+    );
+
+    // top wall
+    this.addSprite('house_wall',
+      260, -1600, 32 * 40, 20,
+      424, 224, 79, 15
+    );
+
+    // bottom wall
+    this.addSprite('house_wall',
+      260, -1600 + 32*40, 32 * 40, 20,
+      424, 224, 79, 15
+    );
+
   }
 
   addSprite(name, x, y, width, height, sx=0, sy=0, sWidth=null, sHeight=null) {
