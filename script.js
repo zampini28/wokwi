@@ -20,6 +20,37 @@ class AssetManager {
     return promise;
   }
 
+  loadWokwi(name, query) {
+    const wokwi = document.querySelector(query);
+    const img = new Image();
+
+    const loadWokwiSource = elem => URL.createObjectURL(
+      new Blob([new XMLSerializer().serializeToString(
+        elem.shadowRoot.querySelector('svg')
+      )], { type: 'image/svg+xml;charser=utf-8' })
+    );
+
+    // TODO: just add to a global observer
+    new MutationObserver(mutations => {
+      mutations.forEach(mutation => {
+        if (mutation.type == 'attributes'){
+          setTimeout(() => img.src = loadWokwiSource(wokwi), 0);
+        }
+      })
+    }).observe(wokwi, { attributes: true });
+
+    img.src = loadWokwiSource(wokwi);
+    this.images.set(name, img);
+
+    const promise = new Promise((resolve, reject) => {
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`failed to load ${query}`));
+    });
+
+    this.loadPromises.push(promise);
+    return promise;
+  }
+
   getImage(name) {
     return this.images.get(name);
   }
@@ -61,6 +92,7 @@ class Character {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.assetManager = assetManager;
+
     this.scale = 2;
     this.spriteWidth = 16;
     this.spriteHeight = 18;
@@ -133,6 +165,13 @@ class Sprite {
   draw(ctx, assetManager, mapOffset) {
     const img = assetManager.getImage(this.name);
     if (!img) return;
+
+    if (!this.width || !this.height) {
+      this.width = img.width;
+      this.height = img.height;
+      this.sourceWidth = img.width;
+      this.sourceHeight = img.height;
+    }
 
     const screenX = this.x + mapOffset.x;
     const screenY = this.y + mapOffset.y;
@@ -209,12 +248,9 @@ class Game {
     this.mapOffset = { x: 0, y: 0 };
     this.sprites = [];
 
-    // edit it
-    //this.frameLimit = 18;
-    this.frameLimit = 5;
+    this.frameLimit = 18;
     this.currentFrame = 0;
     this.moveSpeed = 3;
-    //this.moveSpeed = 15;
 
     this.keys = {
       w: false,
@@ -233,6 +269,8 @@ class Game {
     this.assetManager.loadImage('house_wall', 'inside/inside.png');
     this.assetManager.loadImage('house_door', 'tileset_16x16_interior.png');
 
+    this.assetManager.loadWokwi('wokwi', '#wokwi');
+
     const success = await this.assetManager.loadAll();
     if (success) {
       this.createSprites();
@@ -241,12 +279,16 @@ class Game {
   }
 
   createSprites() {
+    // ESP32
+    // see live update ESP32/wokwi svg
+    this.addSprite('wokwi');
+
     // house floor | 32x32
     for (let i = 0; i < 40; i++) {
       for (let j = 0; j < 40; j++) {
         this.addSprite('house_floor',
           260 + i*32, -1600 + j*32, 32, 32,
-          2, 32*4+2, 28, 28
+          2, 32*3, 28, 28
         );
       }
     }
@@ -295,7 +337,7 @@ class Game {
 
   }
 
-  addSprite(name, x, y, width, height,
+  addSprite(name, x=0, y=0, width=null, height=null,
             sx=0, sy=0, sWidth=null, sHeight=null, hasCollision=false) {
     const sprite = new Sprite(name, x, y, width, height,
                               sx, sy, sWidth, sHeight, hasCollision);
@@ -410,4 +452,5 @@ class Game {
 const canvas = document.querySelector('canvas');
 const game = new Game(canvas);
 game.init();
-// window.DEBUG_COLLISIONS = true;
+
+//window.DEBUG_COLLISIONS = true;

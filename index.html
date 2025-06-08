@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
-  <head>
+  <head lang=en-US>
     <meta charset=utf-8>
     <meta name=viewport content="width=device-width initial-scale=1.0">
+    <script src=wokwi-elements.js></script>
     <style>
       body {
         margin: 0;
@@ -17,6 +18,8 @@
 
       canvas { border: 2px solid #444; }
 
+      .wokwi { position: absolute; display: none; }
+
       .controls {
         position: absolute;
         top: 20px;
@@ -27,7 +30,9 @@
     </style>
   </head>
   <body>
-    <div class=controls>
+    <wokwi-led id=wokwi class=wokwi></wokwi-led>
+    <!-- <wokwi-esp32-devkit-v1 id=ESP32 class=wokwi></wokwi-esp32-devkit-v1> -->
+    <div id=control class=controls>
       <div>Use WASD keys to move</div>
       <div>W: Up, A: Left, S: Down, D: Right</div>
     </div>
