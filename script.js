@@ -6,14 +6,15 @@ import {
   timer0Config,
   AVRTimer,
   PinState,
-  avrInstruction
+  avrInstruction,
+  AVRUSART,
+  usart0Config
 } from 'https://cdn.skypack.dev/avr8js';
 
 /*
  * TODO:
- *       - remove 'Compile & Run' button
- *       - just reload when click start simulation
- *       - see a better usage for led css class
+ *       - test MQTT network
+ *       - create better container for elements and their controls
 */
 
 class ArduinoSimulator {
@@ -21,6 +22,8 @@ class ArduinoSimulator {
     this.cpu = null;
     this.port = null;
     this.timer = null;
+    this.usart = null;
+    this.serialBuffer = '';
     this.isRunning = false;
     this.animationId = null;
     this.cycleCount = 0;
@@ -57,6 +60,15 @@ class ArduinoSimulator {
 
       this.lastUpdateTime = now;
     }
+  }
+
+  addToConsole(text) {
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(`[${timestamp}] ${text}`);
+  }
+
+  clearConsole() {
+    console.clear();
   }
 
   async compileCode(code) {
@@ -100,9 +112,26 @@ class ArduinoSimulator {
 
     this.timer = new AVRTimer(this.cpu, timer0Config)
 
+    this.serialBuffer = '';
+    this.usart = new AVRUSART(this.cpu, usart0Config, 16000000);
+
+    this.usart.onByteTransmit = byte => {
+      const char = String.fromCharCode(byte);
+      if (char == '\n' || char == '\r') {
+        const text = this.serialBuffer.trim();
+        if (text) this.addToConsole(text);
+        this.serialBuffer = '';
+      } else {
+        this.serialBuffer += char;
+      }
+    };
+
     this.cycleCount = 0;
     this.startTime = performance.now();
     this.lastUpdateTime = this.startTime;
+
+    this.clearConsole();
+    this.addToConsole("=== Arduino Serial Monitor Started ===\n");
   }
 
   simulationLoop() {
@@ -153,15 +182,18 @@ class ArduinoSimulator {
     this.elements.cycles.textContent = '0';
     this.elements.frequency.textContent = '0';
     this.elements.uptime.textContent = '0s';
-    this.updateStatus('Ready to compile', 'stopped');
+    this.updateStatus('Ready to compile', 'compiling');
   }
 }
 
 window.simulator = new ArduinoSimulator();
 
 window.startSimulation = () => {
-  const code = document.getElementById('code').value;
-  window.simulator.start(code);
+  window.simulator.reset();
+  setTimeout(() => {
+    const code = document.getElementById('code').value;
+    window.simulator.start(code);
+  }, 100);
 };
 
 window.stopSimulation = () => {
@@ -169,11 +201,10 @@ window.stopSimulation = () => {
 };
 
 window.resetSimulation = () => {
+  fetch('simulation.ino').then(res => res.text()).then(text => {
+    document.getElementById('code').value = text;
+  });
   window.simulator.reset();
 };
 
-window.compileAndRun = () => {
-  window.simulator.reset();
-  setTimeout(() => window.startSimulation(), 100);
-};
-
+window.resetSimulation();

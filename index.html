@@ -13,8 +13,14 @@
       <div class=status id=status>Ready to compile</div>
 
       <div class=led-display>
-        <wokwi-led id=led color='red'></wokwi-led>
-        <div>Pin 7 LED</div>
+        <div>
+          <wokwi-led id=led color='red'></wokwi-led>
+          <div>Pin 7 LED</div>
+        </div>
+        <div>
+          <wokwi-dht22 id=dht22></wokwi-dht22>
+          <div>Pin 6 DHT22</div>
+        </div>
       </div>
 
       <div class=controls>
@@ -43,19 +49,9 @@
       <div class=code-section>
         <h3>Arduino Code</h3>
         <textarea id=code placeholder="Enter source code here...">
-void setup() {
-  pinMode(7, OUTPUT);
-}
-
-void loop() {
-  digitalWrite(7, HIGH);
-  delay(1000);
-  digitalWrite(7, LOW);
-  delay(1000);
-}
         </textarea>
 
-        <button onclick=compileAndRun() style="margin-top: 10px;">Compile & Run</button>
+        <!-- <button onclick=compileAndRun() style="margin-top: 10px;">Compile & Run</button>-->
       </div>
     </div>
     <script type=module src=script.js></script>

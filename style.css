@@ -20,8 +20,12 @@ body {
 }
 
 .led-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   margin: 20px 0;
+  gap: 15px;
 }
 
 .led {
@@ -71,16 +75,19 @@ button {
   font-weight: bold;
 }
 
+/* green display */
 .status.running {
   background: #E8F5E8;
   color: #2E7D32;
 }
 
+/* red display */
 .status.stopped {
   background: #FFEBEE;
   color: #C62828;
 }
 
+/* yellow display */
 .status.compiling {
   background: #FFF3E0;
   color: #EF6C00;
